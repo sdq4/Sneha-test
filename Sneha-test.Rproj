@@ -1,0 +1,537 @@
+---
+title: "CITRUS: Generating the flowchart, and tables 1 & 2"
+author: "Sneha Cherukuri"
+date: "12/1/2022"
+output:
+  word_document: default
+  pdf_document: default
+  code_downoald: true
+---
+
+```{r libraries, include=FALSE}
+library(tidyverse)
+library(haven)
+library(sas7bdat)
+library(xlsx)
+library(ggplot2)
+library(ggpubr)
+library(readr)
+library(readxl)
+library(gt)
+library(gtsummary)
+
+```
+
+Create Master Dataset with serology and demographic data
+
+```{r setup}
+knitr::opts_chunk$set(
+	fig.width = 6,
+	dpi = 150)
+person_level<- read.sas7bdat("//cdc.gov/project/OID_Flu_HCP_Cohorts/CITRUS Cohort/Datasets/Delivery 6 - 12-17-21/person_level_data_121421.sas7bdat")
+
+serology <- read_excel("//cdc.gov/project/OID_Flu_HCP_Cohorts/CITRUS Cohort/Datasets/Serology Data/modified files/complete serology files/all_s_and_v_ser_res_10132022.xlsx")
+
+```
+
+```{r variables, include=FALSE}
+#derived infection naive variable
+citrus<-person_level
+citrus$der_infection<-NA
+citrus$der_infection[citrus$der_cov_pos==1  | citrus$der_s_c19_pre==1]<-1
+citrus$der_infection[citrus$der_cov_pos==0  & citrus$der_s_c19_pre==0]<-0
+
+
+#complete ever and current conditions variables
+citrus$der_ever_condition<-NA
+citrus$der_ever_condition[citrus$e_heart==1  | citrus$e_stroke==1 | citrus$e_lung==1 | citrus$e_kidney==1 | citrus$e_liver==1 |
+                                             citrus$e_cancer==1 | citrus$e_diabetes==1 |  citrus$e_hbp==1 | 
+                                             citrus$e_neuro==1 | citrus$e_depression==1 | citrus$e_arthritis==1 | citrus$e_immune==1 ]<-1
+
+citrus$der_ever_condition[citrus$e_heart==0 & citrus$e_hbp==0 & citrus$e_stroke==0 & citrus$e_lung==0 & citrus$e_kidney==0 & citrus$e_liver==0 &
+                                             citrus$e_cancer==0 & citrus$e_diabetes==0 & citrus$e_depression==0 &
+                                             citrus$e_neuro==0 & citrus$e_arthritis==0 & citrus$e_immune==0 ]<-0
+
+#citrus$der_ever_condition<-factor(citrus$der_ever_condition, levels = c(0,1),
+ #                                                  labels=c("never had any condition", "ever had at least one condition"))
+
+citrus$der_curr_condition<-NA
+citrus$der_curr_condition[ citrus$e_neuro_yes==1 | citrus$e_diabetes==1 | citrus$e_depression_yes==1 | citrus$e_arthritis==1 | citrus$e_immune==1 |
+                                              citrus$e_health_other___1==1 | citrus$e_health_other___2==1 | citrus$e_health_other___3==1 | citrus$e_health_other___4==1 | citrus$e_health_other___5==1 |
+                                              citrus$e_health_other___66==1 |citrus$e_hbp_yes==1 | 
+                                              citrus$e_cancer_breast==1 | citrus$e_cancer_rectal==1 | citrus$e_cancer_liver==1 | citrus$e_cancer_lung==1 | citrus$e_cancer_skin==1 |
+                                              citrus$e_cancer_prostate==1 | citrus$e_cancer_other==1 |citrus$e_liver_yes==1 | citrus$e_kidney_yes==1 | citrus$e_lung_other==1 
+                                            | citrus$e_lung_asthma==1 | citrus$e_lung_copd==1 | citrus$e_lung_bronch==1 | citrus$e_lung_pulfib==1 |citrus$e_heart_angina==1 | 
+                                              citrus$e_heart_fail==1 | citrus$e_heart_myopathy==1 | citrus$e_heart_arrhythmia==1 | citrus$e_heart_other==1 ]<-1
+
+citrus$der_curr_condition[ citrus$e_neuro_yes==0 & citrus$e_diabetes==0 & citrus$e_depression_yes==0 & citrus$e_arthritis==0 & citrus$e_immune==0 &
+                                              citrus$e_health_other___1==0 & citrus$e_health_other___2==0 & citrus$e_health_other___3==0 & citrus$e_health_other___4==0 & citrus$e_health_other___5==0 & 
+                                              citrus$e_health_other___66==0  & citrus$e_hbp_yes==0 &  citrus$e_cancer_cervix==0 &
+                                              citrus$e_cancer_breast==0 & citrus$e_cancer_rectal==0 &  citrus$e_cancer_liver==0 &  citrus$e_cancer_lung==0 &  citrus$e_cancer_skin==0 & 
+                                              citrus$e_cancer_prostate==0 & citrus$e_cancer_other==0 & citrus$e_liver_yes==0 & citrus$e_kidney_yes==0 &  citrus$e_lung_other==0 
+                                            &  citrus$e_lung_asthma==0 & citrus$e_lung_copd==0 & citrus$e_lung_bronch==0 & citrus$e_lung_pulfib==0 & citrus$e_heart_angina==0 &  
+                                              citrus$e_heart_fail==0 & citrus$e_heart_myopathy==0 & citrus$e_heart_arrhythmia==0 & citrus$e_heart_other==0 ]<-0
+#citrus$der_curr_condition<-factor(citrus$der_curr_condition, levels = c(0,1),
+ #                                                  labels=c("currently don't have any condition", "currently have at least one condition"))
+
+
+#excluding hypertension/high blood pressure variable
+citrus$der_ever_condition_exc_hbp[citrus$e_heart==1  | citrus$e_stroke==1 | citrus$e_lung==1 | citrus$e_kidney==1 | citrus$e_liver==1 |
+                                             citrus$e_cancer==1 | citrus$e_diabetes==1 |  citrus$e_depression==1 |
+                                             citrus$e_neuro==1 | citrus$e_arthritis==1 | citrus$e_immune==1 ]<-1
+
+citrus$der_ever_condition_exc_hbp[citrus$e_heart==0 & citrus$e_depression==0 & citrus$e_stroke==0 & citrus$e_lung==0 & citrus$e_kidney==0 & citrus$e_liver==0 &
+                                             citrus$e_cancer==0 & citrus$e_diabetes==0 & 
+                                             citrus$e_neuro==0 & citrus$e_arthritis==0 & citrus$e_immune==0 ]<-0
+
+#citrus$der_ever_condition_exc_hbp<-factor(citrus$der_ever_condition, levels = c(0,1),
+ #                                                  labels=c("never had any condition", "ever had at least one condition"))
+
+citrus$der_curr_condition_exc_hbp[ citrus$e_neuro_yes==1 | citrus$e_diabetes==1 | citrus$e_arthritis==1 | citrus$e_immune==1 |
+                                              citrus$e_health_other___1==1 | citrus$e_health_other___2==1 | citrus$e_health_other___3==1 | citrus$e_health_other___4==1 | citrus$e_health_other___5==1 |
+                                              citrus$e_health_other___66==1 |citrus$e_depression_yes==1 | 
+                                              citrus$e_cancer_breast==1 | citrus$e_cancer_rectal==1 | citrus$e_cancer_liver==1 | citrus$e_cancer_lung==1 | citrus$e_cancer_skin==1 |
+                                              citrus$e_cancer_prostate==1 | citrus$e_cancer_other==1 |citrus$e_liver_yes==1 | citrus$e_kidney_yes==1 | citrus$e_lung_other==1 
+                                            | citrus$e_lung_asthma==1 | citrus$e_lung_copd==1 | citrus$e_lung_bronch==1 | citrus$e_lung_pulfib==1 |citrus$e_heart_angina==1 | 
+                                              citrus$e_heart_fail==1 | citrus$e_heart_myopathy==1 | citrus$e_heart_arrhythmia==1 | citrus$e_heart_other==1 ]<-1
+
+citrus$der_curr_condition_exc_hbp[ citrus$e_neuro_yes==0 & citrus$e_diabetes==0 & citrus$e_arthritis==0 & citrus$e_immune==0 &
+                                              citrus$e_health_other___1==0 & citrus$e_health_other___2==0 & citrus$e_health_other___3==0 & citrus$e_health_other___4==0 & citrus$e_health_other___5==0 & 
+                                              citrus$e_health_other___66==0 & citrus$e_depression_yes==0 &  citrus$e_cancer_cervix==0 &
+                                              citrus$e_cancer_breast==0 & citrus$e_cancer_rectal==0 &  citrus$e_cancer_liver==0 &  citrus$e_cancer_lung==0 &  citrus$e_cancer_skin==0 & 
+                                              citrus$e_cancer_prostate==0 & citrus$e_cancer_other==0 & citrus$e_liver_yes==0 & citrus$e_kidney_yes==0 &  citrus$e_lung_other==0 
+                                            &  citrus$e_lung_asthma==0 & citrus$e_lung_copd==0 & citrus$e_lung_bronch==0 & citrus$e_lung_pulfib==0 & citrus$e_heart_angina==0 &  
+                                              citrus$e_heart_fail==0 & citrus$e_heart_myopathy==0 & citrus$e_heart_arrhythmia==0 & citrus$e_heart_other==0 ]<-0
+
+
+#excluding mental health
+citrus$der_ever_condition_exc_mentalhealth[citrus$e_heart==1  | citrus$e_stroke==1 | citrus$e_lung==1 | citrus$e_kidney==1 | citrus$e_liver==1 |
+                            citrus$e_cancer==1 | citrus$e_diabetes==1 |  citrus$e_hbp==1 |
+                            citrus$e_neuro==1 | citrus$e_arthritis==1 | citrus$e_immune==1 ]<-1
+
+citrus$der_ever_condition_exc_mentalhealth[citrus$e_heart==0 & citrus$e_hbp==0 & citrus$e_stroke==0 & citrus$e_lung==0 & citrus$e_kidney==0 & citrus$e_liver==0 &
+                            citrus$e_cancer==0 & citrus$e_diabetes==0 & 
+                            citrus$e_neuro==0 & citrus$e_arthritis==0 & citrus$e_immune==0 ]<-0
+
+#citrus$der_ever_condition_exc_mentalhealth<-factor(citrus$der_ever_condition, levels = c(0,1),
+ #                                 labels=c("never had any condition", "ever had at least one condition"))
+
+citrus$der_curr_condition_exc_mentalhealth[ citrus$e_neuro_yes==1 | citrus$e_diabetes==1 | citrus$e_arthritis==1 | citrus$e_immune==1 |
+                             citrus$e_health_other___1==1 | citrus$e_health_other___2==1 | citrus$e_health_other___3==1 | citrus$e_health_other___4==1 | citrus$e_health_other___5==1 |
+                             citrus$e_health_other___66==1 |citrus$e_hbp_yes==1 | 
+                             citrus$e_cancer_breast==1 | citrus$e_cancer_rectal==1 | citrus$e_cancer_liver==1 | citrus$e_cancer_lung==1 | citrus$e_cancer_skin==1 |
+                             citrus$e_cancer_prostate==1 | citrus$e_cancer_other==1 |citrus$e_liver_yes==1 | citrus$e_kidney_yes==1 | citrus$e_lung_other==1 
+                           | citrus$e_lung_asthma==1 | citrus$e_lung_copd==1 | citrus$e_lung_bronch==1 | citrus$e_lung_pulfib==1 |citrus$e_heart_angina==1 | 
+                             citrus$e_heart_fail==1 | citrus$e_heart_myopathy==1 | citrus$e_heart_arrhythmia==1 | citrus$e_heart_other==1 ]<-1
+
+citrus$der_curr_condition_exc_mentalhealth[ citrus$e_neuro_yes==0 &  citrus$e_diabetes==0 & citrus$e_arthritis==0 & citrus$e_immune==0 &
+                             citrus$e_health_other___1==0 & citrus$e_health_other___2==0 & citrus$e_health_other___3==0 & citrus$e_health_other___4==0 & citrus$e_health_other___5==0 & 
+                             citrus$e_health_other___66==0 & citrus$e_hbp_yes==0 &  citrus$e_cancer_cervix==0 &
+                             citrus$e_cancer_breast==0 & citrus$e_cancer_rectal==0 &  citrus$e_cancer_liver==0 &  citrus$e_cancer_lung==0 &  citrus$e_cancer_skin==0 & 
+                             citrus$e_cancer_prostate==0 & citrus$e_cancer_other==0 & citrus$e_liver_yes==0 & citrus$e_kidney_yes==0 &  citrus$e_lung_other==0 
+                           &  citrus$e_lung_asthma==0 & citrus$e_lung_copd==0 & citrus$e_lung_bronch==0 & citrus$e_lung_pulfib==0 & citrus$e_heart_angina==0 &  
+                             citrus$e_heart_fail==0 & citrus$e_heart_myopathy==0 & citrus$e_heart_arrhythmia==0 & citrus$e_heart_other==0 ]<-0
+
+#excluding both mental health and hypertension/high blood pressure variables
+citrus$der_ever_condition_exc_hbpdepress[citrus$e_heart==1  | citrus$e_stroke==1 | citrus$e_lung==1 | citrus$e_kidney==1 | citrus$e_liver==1 |
+                                    citrus$e_cancer==1 | citrus$e_diabetes==1 |  
+                                    citrus$e_neuro==1 | citrus$e_arthritis==1 | citrus$e_immune==1 ]<-1
+
+citrus$der_ever_condition_exc_hbpdepress[citrus$e_heart==0 & citrus$e_stroke==0 & citrus$e_lung==0 & citrus$e_kidney==0 & citrus$e_liver==0 &
+                                    citrus$e_cancer==0 & citrus$e_diabetes==0 & 
+                                    citrus$e_neuro==0 & citrus$e_arthritis==0 & citrus$e_immune==0 ]<-0
+
+#citrus$der_ever_condition_exc_hbpdepress<-factor(citrus$der_ever_condition, levels = c(0,1),
+ #                                         labels=c("never had any condition", "ever had at least one condition"))
+
+citrus$der_curr_condition_exc_hbpdepress[ citrus$e_neuro_yes==1 | citrus$e_diabetes==1 | citrus$e_arthritis==1 | citrus$e_immune==1 |
+                                     citrus$e_health_other___1==1 | citrus$e_health_other___2==1 | citrus$e_health_other___3==1 | citrus$e_health_other___4==1 | citrus$e_health_other___5==1 |
+                                     citrus$e_health_other___66==1 | 
+                                     citrus$e_cancer_breast==1 | citrus$e_cancer_rectal==1 | citrus$e_cancer_liver==1 | citrus$e_cancer_lung==1 | citrus$e_cancer_skin==1 |
+                                     citrus$e_cancer_prostate==1 | citrus$e_cancer_other==1 |citrus$e_liver_yes==1 | citrus$e_kidney_yes==1 | citrus$e_lung_other==1 
+                                   | citrus$e_lung_asthma==1 | citrus$e_lung_copd==1 | citrus$e_lung_bronch==1 | citrus$e_lung_pulfib==1 |citrus$e_heart_angina==1 | 
+                                     citrus$e_heart_fail==1 | citrus$e_heart_myopathy==1 | citrus$e_heart_arrhythmia==1 | citrus$e_heart_other==1 ]<-1
+
+citrus$der_curr_condition_exc_hbpdepress[ citrus$e_neuro_yes==0 & citrus$e_diabetes==0 & citrus$e_arthritis==0 & citrus$e_immune==0 &
+                                     citrus$e_health_other___1==0 & citrus$e_health_other___2==0 & citrus$e_health_other___3==0 & citrus$e_health_other___4==0 & citrus$e_health_other___5==0 & 
+                                     citrus$e_health_other___66==0 &  citrus$e_cancer_cervix==0 &
+                                     citrus$e_cancer_breast==0 & citrus$e_cancer_rectal==0 &  citrus$e_cancer_liver==0 &  citrus$e_cancer_lung==0 &  citrus$e_cancer_skin==0 & 
+                                     citrus$e_cancer_prostate==0 & citrus$e_cancer_other==0 & citrus$e_liver_yes==0 & citrus$e_kidney_yes==0 &  citrus$e_lung_other==0 
+                                   &  citrus$e_lung_asthma==0 & citrus$e_lung_copd==0 & citrus$e_lung_bronch==0 & citrus$e_lung_pulfib==0 & citrus$e_heart_angina==0 &  
+                                     citrus$e_heart_fail==0 & citrus$e_heart_myopathy==0 & citrus$e_heart_arrhythmia==0 & citrus$e_heart_other==0 ]<-0
+
+#####################################
+## Functional Status Variables ##
+#####################################
+
+table(citrus$e_sit)
+table(is.na(citrus$e_sit))
+## all 228 can stand from sitting alone without help 
+## 2 missing 
+
+table(citrus$e_sit_alone)
+table(is.na(citrus$e_sit_alone))
+## 166 without difficulty 
+## 62 with some difficulty 
+# 2 missing 
+
+citrus$func_sit <- NA
+citrus$func_sit[(citrus$e_sit==1)&(citrus$e_sit_alone==1)] <-1 ## without any difficulty 
+citrus$func_sit[(citrus$e_sit==1)&(citrus$e_sit_alone==2)] <-0 ## with any difficulty 
+table(citrus$func_sit)
+
+
+table(citrus$e_walk)
+table(is.na(citrus$e_walk))
+## 216 can walk alone without help 
+## 11 need help
+## 1 refused 
+
+
+table(citrus$e_walk_alone[citrus$e_walk==1])
+table(is.na(citrus$e_walk_alone[citrus$e_walk==1]))
+## 171 can walk alone without help without any difficulty
+## 42 can walk alone without help with some difficulty 
+## 3 can walk alone without help with great difficulty 
+
+table(citrus$e_walk_help[citrus$e_walk==2])
+table(is.na(citrus$e_walk_help[citrus$e_walk==2]))
+## 3 sometimes need help
+## 1 very often needs help
+## 7 all the time need help 
+## 2 missing 
+
+
+
+citrus$func_walk <- NA
+citrus$func_walk[(citrus$e_walk==1)&(citrus$e_walk_alone==1)] <-1 ## without any difficulty 
+citrus$func_walk[((citrus$e_walk==1)&(citrus$e_walk_alone>1)) | 
+                   (citrus$e_walk==2)] <-0 ## with any difficulty 
+table(citrus$func_walk)
+
+table(citrus$e_grocery)
+table(is.na(citrus$e_grocery))
+## 3 missing 
+## 213 can do alone without help 
+## 12 need help 
+## 1 doesn't know 
+## 1 refused 
+
+table(citrus$e_grocery_alone[citrus$e_grocery==1])
+table(is.na(citrus$e_grocery_alone[citrus$e_grocery==1]))
+## 198 without any difficulty
+## 15 with some difficulty 
+## 3 missing
+
+
+table(citrus$e_grocery_help[citrus$e_grocery==2])
+table(is.na(citrus$e_grocery_help[citrus$e_grocery==2]))
+## 3 missing 
+## 4 sometimes need help
+## 2 often need help
+# 5 all the time need help 
+## 1 doesn't know 
+
+
+citrus$func_grocery <- NA
+citrus$func_grocery[(citrus$e_grocery==1)&(citrus$e_grocery_alone==1)] <-1 ## without any difficulty 
+citrus$func_grocery[((citrus$e_grocery==1)&(citrus$e_grocery_alone>1)) | 
+                      (citrus$e_grocery==2)] <-0 ## with any difficulty 
+table(citrus$func_grocery)
+
+
+table(citrus$e_stairs)
+table(is.na(citrus$e_stairs))
+## 3 missing 
+## 208 can do alone without help 
+## 14 need help 
+## 4 don't know 
+## 1 refused 
+
+table(citrus$e_stairs_alone[citrus$e_stairs==1])
+table(is.na(citrus$e_stairs_alone[citrus$e_stairs==1]))
+## 133 without any difficulty
+## 66 with some difficulty 
+## 8 with great difficulty 
+## 1 don't know
+## 3 missing
+
+table(citrus$e_stairs_help[citrus$e_stairs==2])
+table(is.na(citrus$e_stairs_help[citrus$e_stairs==2]))
+## 3 missing 
+## 2 sometimes needs help
+## 3 often need help
+## 1 very often needs help
+## 8 all the time need help 
+
+citrus$func_stairs <- NA
+citrus$func_stairs[(citrus$e_stairs==1)&(citrus$e_stairs_alone==1)] <-1 ## without any difficulty 
+citrus$func_stairs[((citrus$e_stairs==1)&(citrus$e_stairs_alone>1)) | 
+                     (citrus$e_stairs==2)] <-0 ## with any difficulty 
+table(citrus$func_stairs)
+
+
+
+table(citrus$e_bath)
+table(is.na(citrus$e_bath))
+## 2 missing 
+## 226 can do alone without help 
+## 2 need help 
+
+table(citrus$e_bath_alone[citrus$e_bath==1])
+table(is.na(citrus$e_bath_alone[citrus$e_bath==1]))
+## 208 without any difficulty
+## 18 with some difficulty 
+
+
+table(citrus$e_bath_help[citrus$e_bath==2])
+table(is.na(citrus$e_bath_help[citrus$e_bath==2]))
+## 2 missing 
+## 4 need help all the time with bathing 
+
+citrus$func_bath <- NA
+citrus$func_bath[(citrus$e_bath==1)&(citrus$e_bath_alone==1)] <-1 ## without any difficulty 
+citrus$func_bath[((citrus$e_bath==1)&(citrus$e_bath_alone>1)) | 
+                   (citrus$e_bath==2)] <-0 ## with any difficulty 
+table(citrus$func_bath)
+#208 without any difficulty
+# 20 with any difficulty
+
+
+table(citrus$e_feet)
+table(is.na(citrus$e_feet))
+## 2 missing 
+## 179 can do alone without help 
+## 47 need help 
+## 1 doesn't know 
+## 1 refused 
+
+table(citrus$e_feet_alone[citrus$e_feet==1])
+table(is.na(citrus$e_feet_alone[citrus$e_feet==1]))
+## 125 without any difficulty
+## 52 with some difficulty 
+## 2 with great difficulty 
+
+table(citrus$e_feet_help[citrus$e_feet==2])
+table(is.na(citrus$e_feet_help[citrus$e_feet==2]))
+## 14 need help sometimes 
+## 4 need help often 
+# 6 need help very often 
+## 23 need help all the time 
+
+
+citrus$func_feet <- NA
+citrus$func_feet[(citrus$e_feet==1)&(citrus$e_feet_alone==1)] <-1 ## without any difficulty 
+citrus$func_feet[((citrus$e_feet==1)&(citrus$e_feet_alone>1)) | 
+                   (citrus$e_feet==2)] <-0 ## with any difficulty 
+table(citrus$func_feet)
+
+
+table(citrus$e_lightwork)
+table(is.na(citrus$e_lightwork))
+## 3 missing 
+## 219 can do alone without help 
+## 7 need help 
+## 1 doesn't know
+
+table(citrus$e_lightwork_alone[citrus$e_lightwork==1])
+table(is.na(citrus$e_lightwork_alone[citrus$e_lightwork==1]))
+## 189 without any difficulty
+## 30 with some difficulty 
+
+
+table(citrus$e_lightwork_help[citrus$e_lightwork==2])
+table(is.na(citrus$e_lightwork_help[citrus$e_lightwork==2]))
+## 3 missing 
+## 1 needs help sometimes
+## 3 need help often
+## 3 need help all the time 
+
+
+citrus$func_lightwork <- NA
+citrus$func_lightwork[(citrus$e_lightwork==1)&(citrus$e_lightwork_alone==1)] <-1 ## without any difficulty 
+citrus$func_lightwork[((citrus$e_lightwork==1)&(citrus$e_lightwork_alone>1)) | 
+                        (citrus$e_lightwork==2)] <-0 ## with any difficulty 
+table(citrus$func_lightwork)
+
+
+
+table(citrus$e_heavywork)
+table(is.na(citrus$e_heavywork))
+## 2 missing 
+## 199 can do alone without help 
+## 26 need help 
+## 1 doesn't know 
+## 2 refused 
+
+table(citrus$e_heavywork_alone[citrus$e_heavywork==1])
+table(is.na(citrus$e_heavywork_alone[citrus$e_heavywork==1]))
+## 147 without any difficulty
+## 50 with some difficulty 
+## 1 with great difficulty 
+## 3 missing responses
+
+table(citrus$e_heavywork_help[citrus$e_heavywork==2])
+table(is.na(citrus$e_heavywork_help[citrus$e_heavywork==2]))
+## 2 missing 
+## 7 need help sometimes
+## 3 need help often
+## 2 need help very often 
+## 13 need help all the time
+## 1 doesn't know 
+
+
+citrus$func_heavywork <- NA
+citrus$func_heavywork[(citrus$e_heavywork==1)&(citrus$e_heavywork_alone==1)] <-1 ## without any difficulty 
+citrus$func_heavywork[((citrus$e_heavywork==1)&(citrus$e_heavywork_alone>1)) | 
+                        (citrus$e_heavywork==2)] <-0 ## with any difficulty 
+table(citrus$func_heavywork)
+
+
+
+table(citrus$e_cook)
+table(is.na(citrus$e_cook))
+## 2 missing 
+## 216 can do alone without help 
+##9 need help 
+## 2 don't know 
+## 1 refused 
+
+table(citrus$e_cook_alone[citrus$e_cook==1])
+table(is.na(citrus$e_cook_alone[citrus$e_cook==1]))
+## 190 without any difficulty
+## 24 with some difficulty
+## 2 with great difficulty 
+
+table(citrus$e_cook_help[citrus$e_cook==2])
+table(is.na(citrus$e_cook_help[citrus$e_cook==2]))
+## 2 missing 
+# 3 need help sometimes 
+# 1 needs help often
+# 1 needs help very often 
+#4 need help all the time 
+
+citrus$func_cook <- NA
+citrus$func_cook[(citrus$e_cook==1)&(citrus$e_cook_alone==1)] <-1 ## without any difficulty 
+citrus$func_cook[((citrus$e_cook==1)&(citrus$e_cook_alone>1)) | 
+                   (citrus$e_cook==2)] <-0 ## with any difficulty 
+table(citrus$func_cook)
+
+citrus$func_score <- NA
+citrus$func_score <-citrus$func_bath + citrus$func_cook + citrus$func_feet + 
+  citrus$func_grocery + citrus$func_heavywork + citrus$func_lightwork + 
+  citrus$func_sit + citrus$func_stairs + citrus$func_walk
+table(citrus$func_score)
+```
+
+```{r setup2, cache=TRUE}
+knitr::opts_chunk$set(echo = FALSE)
+#quick data cleaning
+data <- citrus[-c(1:2), ] #delete Arizona sites
+data<- data[data$der_all_enroll == 1,]
+
+data$s_ethnicity[is.na(data$s_ethnicity)] = 88
+data$race_ethnicity[data$s_ethnicity==88 | data$der_s_race==88]<- "Other"
+data$race_ethnicity[data$s_ethnicity==2 & data$der_s_race==2]<- "Non_Hispanic Asian"
+data$race_ethnicity[data$s_ethnicity==1 & data$der_s_race==5]<- "Hispanic White"
+data$race_ethnicity[data$s_ethnicity==2 & data$der_s_race==5]<- "Non-Hispanic White"
+
+data$Age<- data$s_age
+data$underlying_medical_conditions[data$e_medprob==1]<-"Yes"
+data$underlying_medical_conditions[data$e_medprob==0 | data$e_medprob==88]<-"No"
+data$underlying_medical_conditions[is.na(data$e_medprob)] = "No"
+data$Diabetes[data$e_diabetes==1]<-"Yes"
+data$Diabetes[data$e_diabetes==0]<-"No"
+data$Hypertension[data$e_hbp==1]<-"Yes"
+data$Hypertension[data$e_hbp==0 | data$e_hbp==88]<-"No"
+data$Hypertension[is.na(data$e_hbp)] = "No"
+data$Heart_Disease[data$e_heart==1]<-"Yes"
+data$Heart_Disease[data$e_heart==0 | data$e_heart==88]<-"No"
+data$Heart_Disease[is.na(data$e_heart)] = "No"
+data$Cancer<-NA
+data$Cancer[data$e_cancer_breast==1  | data$e_cancer_cervix==1 | data$e_cancer_rectal==1 |  data$e_cancer_liver==1 | data$e_cancer_lung==1 |  data$e_cancer_skin==1 |  data$e_cancer_prostate==1 | data$e_cancer_other==1 | data$e_cancer_other_2==1]<-"Yes"
+data$Cancer[is.na(data$Cancer)]<-"No"
+
+data$Treatment[data$e_treatment==1]<-"Yes"
+data$Treatment[data$e_treatment==2 | data$e_treatment==4 | data$e_treatment==99]<-"No"
+data$Autoimmune[data$e_immune==1]<-"Yes"
+data$Autoimmune[data$e_immune==0]<-"No"
+data$Autoimmune[is.na(data$e_immune)] = "No"
+data$Hypothyroidism[data$der_e_health_other==3] <- "Yes"
+data$Hypothyroidism[data$der_e_health_other==1 | data$der_e_health_other==2 | data$der_e_health_other==4 | data$der_e_health_other==5 | data$der_e_health_other==55 | data$der_e_health_other==66 | data$der_e_health_other==88 | data$der_e_health_other==0] <- "No"
+data$Hypothyroidism[is.na(data$der_e_health_other)] = "No"
+data$Obese[data$der_e_bmi>29.9]<-"Yes"
+data$Obese[data$der_e_bmi<30]<-"No"
+data$Obese[is.na(data$der_e_bmi)] = "No"
+data$Immunocompromised[data$der_curr_ic_by_clin_diag_enroll==1] <- "Yes"
+data$Immunocompromised[data$der_curr_ic_by_clin_diag_enroll==0]<-"No"
+data$Immunocompromised[is.na(data$der_curr_ic_by_clin_diag_enroll)] = "No"
+
+data$Self_rated_health<- factor(data$e_health_overall, levels = c(1,2,3,4), labels = c("Excellent", "Very good", "Good", "Fair/Poor"))
+
+data$positive_covid_test[data$der_s_c19_pre==1]<-"Yes"
+data$positive_covid_test[data$der_s_c19_pre==0]<-"No"
+data$positive_covid_test[is.na(data$der_s_c19_pre)] = "No"
+data$positive_covid_test_during_study[data$der_cov_pos==1]<-"Yes"
+data$positive_covid_test_during_study[data$der_cov_pos==0]<-"No"
+data$positive_covid_test_during_study[is.na(data$der_cov_pos)] = "No"
+
+data$Gender[data$s_sex_now==1] <- "Female"
+data$Gender[data$s_sex_now==2] <- "Male"
+
+data$Functional_Status<- data$func_score
+data$Household_number<- data$e_household_num
+
+data$site[data$s_site==1] <- "Mayflower"
+data$site[data$s_site==2] <- "Oak Hammock"
+  
+mergedata<-merge(data,serology,by.x=("s_study_id"),by.y=("s_study_id"))
+
+```
+
+Table 1
+
+```{r table1, echo=FALSE}
+table1<-select(data, Gender, Age, race_ethnicity, Household_number, underlying_medical_conditions, Diabetes, Hypertension, Heart_Disease, Cancer, Treatment, Autoimmune, Hypothyroidism, Obese, Immunocompromised, Self_rated_health, Functional_Status, positive_covid_test, positive_covid_test_during_study, site) %>% tbl_summary(by=site, missing = "no") %>%
+          add_overall(col_label = "**Total**")
+table1
+```
+
+Table 2 and Flowchart
+
+```{r flowachart-table2}
+#quantifying alpha titers
+serology$alpha[serology$cov2_D614G_interp=="NNG40" ]<-0
+serology$alpha[serology$cov2_D614G_interp=="NNL40" ]<-0
+serology$alpha[serology$cov2_D614G_interp=="PABL"]<-1
+serology$alpha[serology$cov2_D614G_interp=="PABG" ]<-1
+serology$alpha<-factor(serology$alpha, levels = c(0,1),
+             labels=c("negative", "positive"))
+
+table(serology$alpha, serology$timepoint)
+table(serology$timepoint, serology$vaccine_manufacturer, serology$alpha)
+
+
+#quantifying omicron titers
+serology$omicron[serology$`CoV-2 B.1.1.529 nAb interp`=="NNG40" ]<-0
+serology$omicron[serology$`CoV-2 B.1.1.529 nAb interp`=="NNL40" ]<-0
+serology$omicron[serology$`CoV-2 B.1.1.529 nAb interp`=="PABL"]<-1
+serology$omicron[serology$`CoV-2 B.1.1.529 nAb interp`=="PABG" ]<-1
+serology$omicron<-factor(serology$omicron, levels = c(0,1),
+                       labels=c("negative", "positive"))
+
+table(serology$omicron, serology$timepoint)
+table(serology$timepoint, serology$site, serology$omicron)
+
+#quantifying delta titers
+serology$delta[serology$cov2_B_1_617_2_interp=="NNG40" ]<-0
+serology$delta[serology$cov2_B_1_617_2_interp=="NNL40" ]<-0
+serology$delta[serology$cov2_B_1_617_2_interp=="PABL"]<-1
+serology$delta[serology$cov2_B_1_617_2_interp=="PABG" ]<-1
+serology$delta<-factor(serology$delta, levels = c(0,1),
+                       labels=c("negative", "positive"))
+
+table(serology$delta, serology$timepoint)
+table(serology$timepoint, serology$vaccine_manufacturer, serology$delta)
+
+```
